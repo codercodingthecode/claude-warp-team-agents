@@ -1,4 +1,4 @@
-# warp-agent-teams
+# claude-warp-team-agents
 
 > **Platform: macOS only** — Linux and Windows contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -24,8 +24,8 @@ Each time the team lead spawns a teammate, a new Warp pane opens:
 ### 1. Add the plugin
 
 ```bash
-/plugin marketplace add andylavor/warp-agent-teams
-/plugin install warp-agent-teams
+/plugin marketplace add codercodingthecode/claude-warp-team-agents
+/plugin install claude-warp-team-agents
 ```
 
 ### 2. Set the teammate command
@@ -36,7 +36,7 @@ Add to `~/.claude/settings.json` under `env`:
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_TEAMMATE_COMMAND": "~/.claude/plugins/warp-agent-teams/hooks/lib/warp-teammate.sh"
+    "CLAUDE_CODE_TEAMMATE_COMMAND": "~/.claude/plugins/claude-warp-team-agents/hooks/lib/warp-teammate.sh"
   }
 }
 ```
