@@ -10,9 +10,14 @@
 #                    --agent-color <color> --parent-session-id <uuid>         \
 #                    --teammate-mode <mode> [--model <m>] [--settings <f>] …
 #
-# We open a new Warp split pane and run the real claude binary there with those
-# exact arguments. Communication between agents uses the mailbox (file-based),
-# so the teammate works correctly even though it no longer lives in a tmux pane.
+# Model resolution (override applied before launching):
+#   1. User-defined agent (~/.claude/agents/<name>.md with "model:" frontmatter)
+#      → use that agent's configured model.
+#   2. Otherwise → use the parent session's model from ~/.claude/settings.json.
+#   3. Fallback → leave the model as-is from the caller.
+#
+# Communication between agents uses the mailbox (file-based), so the teammate
+# works correctly even though it no longer lives in a tmux pane.
 #
 # Setup (one-time, add to ~/.zshrc):
 #   export CLAUDE_CODE_TEAMMATE_COMMAND=/path/to/plugin/hooks/lib/warp-teammate.sh
@@ -25,7 +30,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source pane splitting logic
 source "$SCRIPT_DIR/pane.sh" || {
     echo "[warp-agent-teams] ERROR: failed to source pane.sh — falling back to inline run" >&2
-    # Fall back: run claude directly in whatever terminal we're in
     exec "${CLAUDE_CODE_REAL_BIN:-claude}" "$@"
 }
 
@@ -35,7 +39,6 @@ source "$SCRIPT_DIR/pane.sh" || {
 REAL_CLAUDE="${CLAUDE_CODE_REAL_BIN:-}"
 
 if [ -z "$REAL_CLAUDE" ]; then
-    # Find the first 'claude' on PATH that is not this script
     THIS_SCRIPT="$(realpath "${BASH_SOURCE[0]}" 2>/dev/null || readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
     while IFS= read -r candidate; do
         resolved="$(realpath "$candidate" 2>/dev/null || echo "$candidate")"
@@ -53,32 +56,76 @@ if [ -z "$REAL_CLAUDE" ] || [ ! -x "$REAL_CLAUDE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Extract --team-name from args for stable per-session split state
+# Parse --agent-name and --team-name from args
 # ---------------------------------------------------------------------------
-# PPID varies with each wrapper invocation (different tmux shell each time).
-# The team name is constant for all teammates in a session, making it a reliable
-# key for the "first pane gets vertical split, rest get horizontal" logic.
-
+AGENT_NAME=""
 TEAM_NAME="default"
 PREV_ARG=""
 for arg in "$@"; do
-    if [ "$PREV_ARG" = "--team-name" ]; then
-        TEAM_NAME="$arg"
-        break
-    fi
+    case "$PREV_ARG" in
+        --agent-name) AGENT_NAME="$arg" ;;
+        --team-name)  TEAM_NAME="$arg"  ;;
+    esac
     PREV_ARG="$arg"
 done
 
 # ---------------------------------------------------------------------------
-# Build and run the teammate command in a new Warp pane
+# Resolve the model to use for this teammate
 # ---------------------------------------------------------------------------
-# Preserve all passed arguments verbatim.
+CLAUDE_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+AGENTS_DIR="$CLAUDE_CONFIG/agents"
+SETTINGS_FILE="$CLAUDE_CONFIG/settings.json"
+
+RESOLVED_MODEL=""
+
+# 1. User-defined agent with a model in its frontmatter?
+if [ -n "$AGENT_NAME" ] && [ -f "$AGENTS_DIR/$AGENT_NAME.md" ]; then
+    AGENT_MODEL=$(awk '/^model:/{gsub(/model:[[:space:]]*/,""); gsub(/["\x27]/,""); print; exit}' \
+                  "$AGENTS_DIR/$AGENT_NAME.md" 2>/dev/null)
+    if [ -n "$AGENT_MODEL" ]; then
+        RESOLVED_MODEL="$AGENT_MODEL"
+        echo "[warp-agent-teams] Using agent-configured model: $RESOLVED_MODEL (agent: $AGENT_NAME)" >&2
+    fi
+fi
+
+# 2. Fall back to parent session's model from settings.json
+if [ -z "$RESOLVED_MODEL" ] && [ -f "$SETTINGS_FILE" ]; then
+    RESOLVED_MODEL=$(jq -r '.model // empty' "$SETTINGS_FILE" 2>/dev/null)
+    if [ -n "$RESOLVED_MODEL" ]; then
+        echo "[warp-agent-teams] Using parent session model: $RESOLVED_MODEL" >&2
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Rebuild args, replacing --model with the resolved value (if any)
+# ---------------------------------------------------------------------------
+if [ -n "$RESOLVED_MODEL" ]; then
+    # Walk through $@ and drop any existing --model <value> pair, then append ours
+    NEW_ARGS=()
+    SKIP_NEXT=0
+    for arg in "$@"; do
+        if [ "$SKIP_NEXT" -eq 1 ]; then
+            SKIP_NEXT=0
+            continue
+        fi
+        if [ "$arg" = "--model" ]; then
+            SKIP_NEXT=1
+            continue
+        fi
+        NEW_ARGS+=("$arg")
+    done
+    NEW_ARGS+=("--model" "$RESOLVED_MODEL")
+    set -- "${NEW_ARGS[@]}"
+fi
+
+# ---------------------------------------------------------------------------
+# Build and launch the teammate in a new Warp pane
+# ---------------------------------------------------------------------------
 # shellcheck disable=SC2046
 ARGS=$(printf '%q ' "$@")
 
-# Include CLAUDECODE so the new pane's claude knows it's running under Claude Code.
 CMD="CLAUDECODE=1 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 $REAL_CLAUDE $ARGS"
 
-echo "[warp-agent-teams] Opening Warp pane for teammate (team: $TEAM_NAME)" >&2
+echo "[warp-agent-teams] Opening Warp pane for teammate '$AGENT_NAME' (team: $TEAM_NAME)" >&2
 
 split_and_run_in_warp "$CMD" "$TEAM_NAME"
