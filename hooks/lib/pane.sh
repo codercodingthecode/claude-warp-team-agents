@@ -59,9 +59,13 @@ split_and_run_in_warp() {
         local split_exit=$?
         [ $split_exit -eq 0 ] && touch "$_WARP_SPLIT_STATE"
     else
+        # Navigate to the right column first (CMD+OPT+→) so the horizontal split
+        # lands inside the teammate column, not the team-lead pane on the left.
         osascript -e '
             tell application "System Events"
                 tell process "Warp"
+                    key code 124 using {command down, option down}
+                    delay 0.1
                     keystroke "d" using {command down, shift down}
                 end tell
             end tell
