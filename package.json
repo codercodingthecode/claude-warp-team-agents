@@ -1,0 +1,5 @@
+{
+  "name": "warp-agent-teams",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that auto-splits Warp panes for Agent Teams teammates (macOS)"
+}
