@@ -23,14 +23,25 @@ Each time the team lead spawns a teammate, a new Warp pane opens:
 
 ## Installation
 
-### 1. Add the plugin
+### 1. Add the marketplace
+
+In Claude Code, run `/plugin` and navigate to the **Marketplaces** tab. Select **+ Add Marketplace** and enter:
+
+```
+codercodingthecode/claude-warp-team-agents
+```
+
+![Marketplaces tab in Claude Code](docs/plugin-marketplace.png)
+
+### 2. Install the plugin
+
+After adding the marketplace, go to the **Installed** tab and install `claude-warp-team-agents`. Or run:
 
 ```bash
-/plugin marketplace add codercodingthecode/claude-warp-team-agents
 /plugin install claude-warp-team-agents
 ```
 
-### 2. Set the teammate command
+### 3. Set the teammate command
 
 Add to `~/.claude/settings.json` under `env`:
 
@@ -46,7 +57,7 @@ Add to `~/.claude/settings.json` under `env`:
 > **Note:** After installing the plugin, run `/plugin list` to find the exact
 > installation path and adjust the `CLAUDE_CODE_TEAMMATE_COMMAND` path accordingly.
 
-### 3. Grant Accessibility permissions
+### 4. Grant Accessibility permissions
 
 The plugin uses AppleScript to drive Warp's keyboard shortcuts. macOS requires
 accessibility access:
