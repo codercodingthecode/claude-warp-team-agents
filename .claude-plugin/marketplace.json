@@ -1,0 +1,20 @@
+{
+  "name": "claude-warp-team-agents",
+  "owner": {
+    "name": "Andy Lavor"
+  },
+  "plugins": [
+    {
+      "name": "claude-warp-team-agents",
+      "description": "Auto-splits Warp terminal panes for Claude Code Agent Teams teammates on macOS",
+      "source": "./",
+      "version": "0.1.0",
+      "author": {
+        "name": "Andy Lavor"
+      },
+      "repository": "https://github.com/codercodingthecode/claude-warp-team-agents",
+      "license": "MIT",
+      "keywords": ["warp", "terminal", "agent-teams", "split-pane", "macos"]
+    }
+  ]
+}
