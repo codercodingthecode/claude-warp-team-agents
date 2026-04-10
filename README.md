@@ -1,6 +1,8 @@
 # warp-agent-teams
 
-Claude Code plugin that automatically splits Warp terminal panes for Agent Teams teammates on macOS.
+> **Platform: macOS only** — Linux and Windows contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Claude Code plugin that automatically splits Warp terminal panes for Agent Teams teammates.
 
 Each time the team lead spawns a teammate, a new Warp pane opens:
 
