@@ -20,6 +20,11 @@ payload=$(cat "$FIXTURES/team_create_result.json")
 cmd=$(extract_teammate_command "$payload")
 assert_eq "extracts command" "claude --team-member --session abc123 --teammate-id tm_abc123" "$cmd"
 
+# Falls back to spawn_command when command field is absent
+payload=$(cat "$FIXTURES/team_create_spawn_cmd.json")
+cmd=$(extract_teammate_command "$payload")
+assert_eq "falls back to spawn_command" "claude --team-member --session abc123 --teammate-id tm_abc123" "$cmd"
+
 # Returns empty string when command field is missing
 payload=$(cat "$FIXTURES/team_create_no_cmd.json")
 cmd=$(extract_teammate_command "$payload")
