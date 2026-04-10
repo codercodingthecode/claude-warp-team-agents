@@ -1,6 +1,15 @@
 #!/bin/bash
-# Splits the active Warp pane vertically (CMD+D) and runs a command in the new pane.
+# Splits Warp panes and runs a command in the new pane.
 # Uses pbcopy + CMD+V to paste the command safely (handles special chars in command strings).
+#
+# Layout strategy (keyed to the Claude Code session via PPID):
+#   First teammate  → CMD+D  (vertical split — creates right column)
+#   Further mates   → CMD+SHIFT+D (horizontal split inside the right column)
+#
+# This produces:
+#   [Main Claude] | [Teammate 1]
+#                 | [Teammate 2]
+#                 | [Teammate 3]
 #
 # Note: clipboard save/restore uses pbpaste/pbcopy plain-text round-trip. Rich clipboard
 # content (images, styled text) will be downgraded to plain text.
@@ -11,6 +20,10 @@
 # Returns:
 #   0 on success
 #   1 if osascript or pbcopy fails
+
+# Per-session state file — tracks whether the initial vertical split has been done.
+# Keyed by PPID (Claude Code's PID) so each session is isolated automatically.
+_WARP_SPLIT_STATE="/tmp/warp-agent-teams-${PPID}.split"
 
 split_and_run_in_warp() {
     local teammate_cmd="$1"
@@ -30,16 +43,31 @@ split_and_run_in_warp() {
         return 1
     fi
 
-    # Split active Warp pane vertically (CMD+D)
-    osascript -e '
-        tell application "System Events"
-            tell process "Warp"
-                keystroke "d" using {command down}
+    # Choose split direction based on session state:
+    #   First call  → vertical (CMD+D):       creates the right column
+    #   Subsequent  → horizontal (CMD+SHIFT+D): stacks inside the right column
+    if [ ! -f "$_WARP_SPLIT_STATE" ]; then
+        osascript -e '
+            tell application "System Events"
+                tell process "Warp"
+                    keystroke "d" using {command down}
+                end tell
             end tell
-        end tell
-    ' 2>/dev/null
+        ' 2>/dev/null
+        local split_exit=$?
+        [ $split_exit -eq 0 ] && touch "$_WARP_SPLIT_STATE"
+    else
+        osascript -e '
+            tell application "System Events"
+                tell process "Warp"
+                    keystroke "d" using {command down, shift down}
+                end tell
+            end tell
+        ' 2>/dev/null
+        local split_exit=$?
+    fi
 
-    if [ $? -ne 0 ]; then
+    if [ $split_exit -ne 0 ]; then
         echo "[warp-agent-teams] ERROR: osascript failed to split pane" >&2
         printf '%s' "$saved_clipboard" | pbcopy
         return 1
