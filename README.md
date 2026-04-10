@@ -1,6 +1,6 @@
 # warp-agent-teams
 
-Automatically splits Warp terminal panes for Claude Code Agent Teams teammates on macOS.
+Claude Code plugin that automatically splits Warp terminal panes for Agent Teams teammates on macOS.
 
 Each time the team lead spawns a teammate, a new Warp pane opens:
 
@@ -17,113 +17,107 @@ Each time the team lead spawns a teammate, a new Warp pane opens:
 - `jq` — `brew install jq`
 - Claude Code with Agent Teams enabled
 
-## How it works
+## Installation
 
-Claude Code reads the `CLAUDE_CODE_TEAMMATE_COMMAND` environment variable to find the
-executable path when spawning teammates. By pointing it at `hooks/lib/warp-teammate.sh`,
-we intercept each spawn: the wrapper opens a Warp split pane and runs the real `claude`
-binary there with all the original teammate flags.
+### 1. Add the plugin
 
-Agent communication is file-based (mailbox system), so teammates work correctly in Warp
-panes even without tmux involvement.
+```bash
+/plugin marketplace add andylavor/warp-agent-teams
+/plugin install warp-agent-teams
+```
 
-## Setup
+### 2. Set the teammate command
 
-### 1. Enable Agent Teams
-
-Add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json` under `env`:
 
 ```json
 {
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_TEAMMATE_COMMAND": "~/.claude/plugins/warp-agent-teams/hooks/lib/warp-teammate.sh"
   }
 }
 ```
 
-### 2. Register the hook
+> **Note:** After installing the plugin, run `/plugin list` to find the exact
+> installation path and adjust the `CLAUDE_CODE_TEAMMATE_COMMAND` path accordingly.
 
-Also in `~/.claude/settings.json`, add the PostToolUse hook (merge with existing content):
+### 3. Grant Accessibility permissions
 
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/absolute/path/to/warp-agent-teams/hooks/post-agent.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Replace `/absolute/path/to/warp-agent-teams/` with the actual path where you cloned this repo.
-
-### 3. Point CLAUDE_CODE_TEAMMATE_COMMAND at the wrapper
-
-Add to your `~/.zshrc` (or `~/.bashrc`):
-
-```bash
-export CLAUDE_CODE_TEAMMATE_COMMAND="/absolute/path/to/warp-agent-teams/hooks/lib/warp-teammate.sh"
-```
-
-Then reload your shell:
-
-```bash
-source ~/.zshrc
-```
-
-> **Why is this needed?**  
-> `CLAUDE_CODE_TEAMMATE_COMMAND` tells the team-lead process which binary to invoke when
-> spawning each teammate. Our wrapper script intercepts the call and redirects it into a
-> Warp pane instead of a tmux window.
-
-### 4. Grant Accessibility permissions
-
-The wrapper uses AppleScript to drive Warp's keyboard shortcuts. macOS requires
-accessibility access for this to work:
+The plugin uses AppleScript to drive Warp's keyboard shortcuts. macOS requires
+accessibility access:
 
 1. Open **System Settings → Privacy & Security → Accessibility**
-2. Add **Warp** (and optionally your terminal where hooks run) to the allowed list
+2. Add **Warp** to the allowed list
+
+## How it works
+
+Claude Code reads `CLAUDE_CODE_TEAMMATE_COMMAND` to find the executable when
+spawning teammates. This plugin's wrapper script (`warp-teammate.sh`) intercepts
+each spawn: it opens a Warp split pane and runs the real `claude` binary there
+with all the original teammate flags.
+
+Agent communication is file-based (mailbox system), so teammates work correctly
+in Warp panes without tmux.
+
+### Model resolution
+
+Teammates inherit the parent session's model unless overridden:
+
+1. **User-defined agent** (`~/.claude/agents/<name>.md` with `model:` frontmatter) → uses that model
+2. **Parent session model** (from `~/.claude/settings.json`) → uses that model
+3. **Caller's model** → used as-is if neither above is found
+
+### Pane layout
+
+- First teammate: vertical split (CMD+D) — creates right column
+- Further teammates: horizontal split in the right column (CMD+SHIFT+D)
+- Concurrent spawns are serialized with a file lock to prevent race conditions
+
+### Verify + retry
+
+AppleScript Return key is unreliable in Warp's block-based input model. The
+plugin verifies execution by checking if the launcher script was consumed
+(it self-deletes on start), and retries Enter with pane navigation if needed.
 
 ## Usage
 
-Start Claude Code in Warp with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` set. When the
-team lead spawns a teammate via the `Agent` tool, a new Warp split pane opens
-automatically with the teammate running inside.
+Start Claude Code in Warp. Tell the team lead to create a team and spawn
+teammates:
 
-## Troubleshooting
+```
+Create a team and use teammates to build [your task] in parallel.
+```
 
-- **Pane opens but command doesn't run:** Check Accessibility permissions (see step 4).
-- **Pane split timing is off on slower machines:** Increase the `sleep 0.3` in
-  `hooks/lib/pane.sh` to `0.5`.
-- **Nothing happens:** Verify `CLAUDE_CODE_TEAMMATE_COMMAND` is exported and points to
-  the wrapper; check that the hook path in `settings.json` is absolute and executable
-  (`chmod +x hooks/lib/warp-teammate.sh hooks/post-agent.sh`).
-- **Teammate still appears in tmux:** `CLAUDE_CODE_TEAMMATE_COMMAND` is not being picked
-  up — confirm it's exported in your shell profile and that the session was started after
-  the export.
+Each teammate automatically opens in a new Warp split pane.
 
-## Fallback mode (no CLAUDE_CODE_TEAMMATE_COMMAND)
+## Fallback mode
 
-If `CLAUDE_CODE_TEAMMATE_COMMAND` is not set, the PostToolUse hook fires after the
-teammate is already running in a tmux pane. It reads the teammate's process command from
-the pane, kills the tmux pane, and restarts the teammate in a Warp split. This approach
-has a small timing window but works for most cases.
+If `CLAUDE_CODE_TEAMMATE_COMMAND` is not set, the PostToolUse hook fires after
+the teammate is already running in tmux. It reads the teammate's process from
+the tmux pane, kills the pane, and restarts the teammate in a Warp split.
 
 ## Non-Warp terminals
 
-Both the wrapper and the hook exit silently when not running in a Warp environment.
-Agent Teams falls back to normal tmux operation with no errors.
+The plugin exits silently when not running in Warp. Agent Teams falls back to
+normal tmux operation.
+
+## Troubleshooting
+
+- **Pane opens but command doesn't run:** Check Accessibility permissions (step 3).
+- **Nothing happens:** Verify `CLAUDE_CODE_TEAMMATE_COMMAND` points to the
+  wrapper. Run `/plugin list` to confirm the plugin is installed.
+- **Teammate still in tmux:** `CLAUDE_CODE_TEAMMATE_COMMAND` is not being
+  picked up. Restart Claude Code after updating settings.
+- **Second pane needs manual Enter:** Increase retry tolerance — the plugin
+  retries up to 15 times, but slow machines may need more time.
 
 ## Running tests
 
 ```bash
 bash tests/run_tests.sh
 ```
+
+## License
+
+MIT
