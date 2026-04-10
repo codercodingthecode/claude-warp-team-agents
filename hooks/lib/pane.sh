@@ -2,7 +2,7 @@
 # Splits Warp panes and runs a command in the new pane.
 # Uses pbcopy + CMD+V to paste the command safely (handles special chars in command strings).
 #
-# Layout strategy (keyed to the Claude Code session via PPID):
+# Layout strategy (keyed by an optional state_key, defaulting to PPID):
 #   First teammate  → CMD+D  (vertical split — creates right column)
 #   Further mates   → CMD+SHIFT+D (horizontal split inside the right column)
 #
@@ -16,17 +16,19 @@
 #
 # Arguments:
 #   $1 — the full command string to run in the new pane
+#   $2 — (optional) state key for tracking split direction across calls.
+#         Defaults to PPID (stable when called from a PostToolUse hook).
+#         Use --team-name when called from a wrapper (PPID varies per invocation).
 #
 # Returns:
 #   0 on success
 #   1 if osascript or pbcopy fails
 
-# Per-session state file — tracks whether the initial vertical split has been done.
-# Keyed by PPID (Claude Code's PID) so each session is isolated automatically.
-_WARP_SPLIT_STATE="/tmp/warp-agent-teams-${PPID}.split"
-
 split_and_run_in_warp() {
     local teammate_cmd="$1"
+    local state_key="${2:-${PPID}}"
+    # Per-session state file: tracks whether the initial vertical split has been done.
+    local _WARP_SPLIT_STATE="/tmp/warp-agent-teams-${state_key}.split"
 
     if [ -z "$teammate_cmd" ]; then
         echo "[warp-agent-teams] ERROR: no command provided to split_and_run_in_warp" >&2
@@ -77,11 +79,14 @@ split_and_run_in_warp() {
     # Increase this value (e.g. sleep 0.5) on slower machines if the paste fires too early.
     sleep 0.3
 
-    # Paste and execute the command in the new focused pane
+    # Paste the command, wait briefly for Warp to register it, then send Enter.
+    # The delay between paste and Return is necessary — without it the Return fires
+    # before Warp has finished inserting the clipboard text.
     osascript -e '
         tell application "System Events"
             tell process "Warp"
                 keystroke "v" using {command down}
+                delay 0.15
                 key code 36
             end tell
         end tell

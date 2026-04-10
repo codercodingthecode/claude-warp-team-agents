@@ -1,0 +1,25 @@
+{
+  "session_id": "7d0dfbf8-50f4-4537-a1ce-78e5b579ad62",
+  "cwd": "/Users/andy/projects/warp-cloud",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Researches the codebase",
+    "prompt": "You are a researcher. Your job is to look up relevant context.",
+    "name": "researcher",
+    "team_name": "hook-test"
+  },
+  "tool_response": {
+    "status": "teammate_spawned",
+    "teammate_id": "researcher@hook-test",
+    "agent_id": "researcher@hook-test",
+    "model": "claude-opus-4-6",
+    "name": "researcher",
+    "color": "blue",
+    "tmux_session_name": "claude-swarm",
+    "tmux_pane_id": "%0",
+    "team_name": "hook-test",
+    "is_splitpane": true,
+    "plan_mode_required": false
+  }
+}

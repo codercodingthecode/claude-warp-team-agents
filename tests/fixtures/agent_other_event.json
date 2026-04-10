@@ -1,0 +1,13 @@
+{
+  "session_id": "7d0dfbf8-50f4-4537-a1ce-78e5b579ad62",
+  "cwd": "/Users/andy/projects/warp-cloud",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Some other agent task"
+  },
+  "tool_response": {
+    "status": "completed",
+    "output": "Task done"
+  }
+}
