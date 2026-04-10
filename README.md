@@ -4,6 +4,8 @@
 
 Claude Code plugin that automatically splits Warp terminal panes for Agent Teams teammates.
 
+![claude-warp-team-agents demo](docs/claude-warp-agents.gif)
+
 Each time the team lead spawns a teammate, a new Warp pane opens:
 
 ```
