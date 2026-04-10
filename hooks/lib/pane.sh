@@ -2,6 +2,9 @@
 # Splits the active Warp pane vertically (CMD+D) and runs a command in the new pane.
 # Uses pbcopy + CMD+V to paste the command safely (handles special chars in command strings).
 #
+# Note: clipboard save/restore uses pbpaste/pbcopy plain-text round-trip. Rich clipboard
+# content (images, styled text) will be downgraded to plain text.
+#
 # Arguments:
 #   $1 — the full command string to run in the new pane
 #
@@ -10,9 +13,9 @@
 #   1 if osascript or pbcopy fails
 
 split_and_run_in_warp() {
-    local command="$1"
+    local teammate_cmd="$1"
 
-    if [ -z "$command" ]; then
+    if [ -z "$teammate_cmd" ]; then
         echo "[warp-agent-teams] ERROR: no command provided to split_and_run_in_warp" >&2
         return 1
     fi
@@ -22,7 +25,10 @@ split_and_run_in_warp() {
     saved_clipboard=$(pbpaste 2>/dev/null)
 
     # Copy teammate command to clipboard
-    printf '%s' "$command" | pbcopy
+    if ! printf '%s' "$teammate_cmd" | pbcopy 2>/dev/null; then
+        echo "[warp-agent-teams] ERROR: pbcopy failed" >&2
+        return 1
+    fi
 
     # Split active Warp pane vertically (CMD+D)
     osascript -e '
@@ -39,7 +45,8 @@ split_and_run_in_warp() {
         return 1
     fi
 
-    # Wait for new pane to open and receive focus
+    # Wait for new pane to open and receive focus.
+    # Increase this value (e.g. sleep 0.5) on slower machines if the paste fires too early.
     sleep 0.3
 
     # Paste and execute the command in the new focused pane
