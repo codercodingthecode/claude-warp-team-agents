@@ -41,9 +41,9 @@ After adding the marketplace, go to the **Installed** tab and install `claude-wa
 /plugin install claude-warp-team-agents
 ```
 
-### 3. Set the teammate command
+### 3. Configure settings
 
-Add to `~/.claude/settings.json` under `env`:
+Add the following to `~/.claude/settings.json`:
 
 ```json
 {
@@ -53,6 +53,9 @@ Add to `~/.claude/settings.json` under `env`:
   }
 }
 ```
+
+- **`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`** — enables Agent Teams (required for teammates to spawn at all)
+- **`CLAUDE_CODE_TEAMMATE_COMMAND`** — tells Claude Code to use this plugin's wrapper instead of tmux
 
 > **Note:** After installing the plugin, run `/plugin list` to find the exact
 > installation path and adjust the `CLAUDE_CODE_TEAMMATE_COMMAND` path accordingly.
