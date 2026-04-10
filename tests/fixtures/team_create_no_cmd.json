@@ -1,0 +1,5 @@
+{
+  "tool_name": "TeamCreate",
+  "tool_input": { "name": "researcher" },
+  "tool_result": { "teammate_id": "tm_abc123" }
+}
