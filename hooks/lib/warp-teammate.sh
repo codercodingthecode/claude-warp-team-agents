@@ -56,18 +56,25 @@ if [ -z "$REAL_CLAUDE" ] || [ ! -x "$REAL_CLAUDE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Parse --agent-name and --team-name from args
+# Parse --agent-name, --team-name, and --parent-session-id from args
 # ---------------------------------------------------------------------------
 AGENT_NAME=""
 TEAM_NAME="default"
+PARENT_SESSION_ID=""
 PREV_ARG=""
 for arg in "$@"; do
     case "$PREV_ARG" in
-        --agent-name) AGENT_NAME="$arg" ;;
-        --team-name)  TEAM_NAME="$arg"  ;;
+        --agent-name)        AGENT_NAME="$arg"        ;;
+        --team-name)         TEAM_NAME="$arg"         ;;
+        --parent-session-id) PARENT_SESSION_ID="$arg" ;;
     esac
     PREV_ARG="$arg"
 done
+
+# State key: parent session ID (unique per Claude Code session) so the split
+# state doesn't bleed across sessions that happen to share the same team name.
+# Fall back to team name if session ID is unavailable.
+STATE_KEY="${PARENT_SESSION_ID:-$TEAM_NAME}"
 
 # ---------------------------------------------------------------------------
 # Resolve the model to use for this teammate
@@ -128,4 +135,4 @@ CMD="CLAUDECODE=1 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 $REAL_CLAUDE $ARGS"
 
 echo "[warp-agent-teams] Opening Warp pane for teammate '$AGENT_NAME' (team: $TEAM_NAME)" >&2
 
-split_and_run_in_warp "$CMD" "$TEAM_NAME"
+split_and_run_in_warp "$CMD" "$STATE_KEY"
