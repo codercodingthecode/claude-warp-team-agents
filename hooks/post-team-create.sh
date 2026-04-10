@@ -1,11 +1,17 @@
 #!/bin/bash
 # PostToolUse hook for TeamCreate — splits Warp pane and runs teammate.
 # Exits 0 silently in non-Warp terminals (no interference).
+# Pane-split failures are non-fatal: errors are logged to stderr but exit is always 0.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/warp.sh"
-source "$SCRIPT_DIR/lib/payload.sh"
-source "$SCRIPT_DIR/lib/pane.sh"
+
+for lib in warp.sh payload.sh pane.sh; do
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/lib/$lib" || {
+        echo "[warp-agent-teams] ERROR: failed to source lib/$lib — hook aborting" >&2
+        exit 0
+    }
+done
 
 # Read the full hook payload from stdin
 payload=$(cat)
@@ -25,5 +31,6 @@ if [ -z "$teammate_command" ]; then
     exit 0
 fi
 
-# Split pane and run
+# Split pane and run; pane-split failures are non-fatal
 split_and_run_in_warp "$teammate_command"
+exit 0
